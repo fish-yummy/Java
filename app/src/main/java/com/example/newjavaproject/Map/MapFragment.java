@@ -4,8 +4,10 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -36,7 +38,20 @@ public class MapFragment extends Fragment implements OnMapReadyCallback{
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         }
+
+        CardView cardMapPreview = view.findViewById(R.id.card_map_preview);
+        cardMapPreview.setOnClickListener(v -> {
+            // 這裡負責處理點擊後變成全螢幕地圖的邏輯。
+        
+            Toast.makeText(getContext(), "[架構] 點擊了地圖預覽，請在此啟動全螢幕地圖 Activity 或切換 Fragment。", Toast.LENGTH_LONG).show();
+            
+            
+            
+        });
+
     }
+
+    
 
     @Override
 
