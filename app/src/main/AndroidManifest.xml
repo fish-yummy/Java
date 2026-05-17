@@ -30,6 +30,7 @@
             </intent-filter>
         </activity>
         <!-- <activity android:name=".map.MapActivity" /> -->
+        <receiver android:name=".nutrition.service.WaterReminderReceiver" />
     </application>
 
 </manifest>

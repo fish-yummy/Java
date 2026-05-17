@@ -1,7 +1,6 @@
 package com.example.newjavaproject;
 
 import android.os.Bundle;
-
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -14,7 +13,10 @@ import android.content.Intent;
 import android.os.Bundle;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import androidx.fragment.app.Fragment;
+
 import com.example.newjavaproject.map.MapFragment;
+import com.example.newjavaproject.assistant.AssistantFragment;
+import com.example.newjavaproject.nutrition.NutritionFragment;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -36,14 +38,15 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
             
             if (itemId == R.id.nav_map) {
-                //tvContent.setText("氧森地圖畫面");
+               
                 loadFragment(new MapFragment());
                 return true;
             } else if (itemId == R.id.nav_assistant) {
-                Toast.makeText(MainActivity.this, "慢動助手畫面", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(MainActivity.this, "點擊了", Toast.LENGTH_SHORT).show();
+                loadFragment(new AssistantFragment());
                 return true;
             } else if (itemId == R.id.nav_nutrition) {
-                Toast.makeText(MainActivity.this, "食運天平畫面", Toast.LENGTH_SHORT).show();
+                loadFragment(new NutritionFragment());
                 return true;
             }
             return false;
