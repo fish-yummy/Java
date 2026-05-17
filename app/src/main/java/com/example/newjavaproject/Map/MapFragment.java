@@ -1,8 +1,13 @@
 package com.example.newjavaproject.map;
-import android.os.Bundle;
-import androidx.appcompat.app.AppCompatActivity;
 
-// 匯入 Google Maps 相關套件
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -12,17 +17,21 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import com.example.newjavaproject.R;
 
-public class MapActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MapFragment extends Fragment implements OnMapReadyCallback{
     private GoogleMap mMap;
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         
-        setContentView(R.layout.activity_map);
+        return inflater.inflate(R.layout.fragment_map, container, false);
+    }
 
-      
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
                 .findFragmentById(R.id.map);
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
@@ -30,15 +39,14 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     }
 
     @Override
-    public void onMapReady(GoogleMap googleMap) {
+
+    public void onMapReady(@NonNull GoogleMap googleMap){
         mMap = googleMap;
 
         LatLng testLocation = new LatLng(23.545, 120.428);
-
         mMap.addMarker(new MarkerOptions()
                 .position(testLocation)
-                .title("氧森地圖測試成功！"));
-
+                .title("氧森地圖測試成功"));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(testLocation, 15f));
     }
 }

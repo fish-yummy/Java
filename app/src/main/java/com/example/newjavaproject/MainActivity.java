@@ -9,38 +9,52 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import android.widget.Button;
 import android.widget.Toast;
-
+import android.widget.TextView;
 import android.content.Intent;
 import android.os.Bundle;
-import com.example.newjavaproject.map.MapActivity;
-
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import androidx.fragment.app.Fragment;
+import com.example.newjavaproject.map.MapFragment;
 
 public class MainActivity extends AppCompatActivity {
 
-   
+    
+
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button btnMap = findViewById(R.id.btn_map);
-        Button btnAssistant = findViewById(R.id.btn_assistant);
-        Button btnNutrition = findViewById(R.id.btn_nutrition);
+     
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
 
-        btnMap.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, MapActivity.class);
-            startActivity(intent);
+        if (savedInstanceState == null) {
+            loadFragment(new MapFragment());
+        }
+
+        bottomNav.setOnItemSelectedListener(item -> {
+            int itemId = item.getItemId();
+            
+            if (itemId == R.id.nav_map) {
+                //tvContent.setText("氧森地圖畫面");
+                loadFragment(new MapFragment());
+                return true;
+            } else if (itemId == R.id.nav_assistant) {
+                Toast.makeText(MainActivity.this, "慢動助手畫面", Toast.LENGTH_SHORT).show();
+                return true;
+            } else if (itemId == R.id.nav_nutrition) {
+                Toast.makeText(MainActivity.this, "食運天平畫面", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            return false;
         });
+    }
 
-        btnAssistant.setOnClickListener(v -> {
-            Toast.makeText(MainActivity.this, "慢動助手開發中...", Toast.LENGTH_SHORT).show();
-        });
 
-        btnNutrition.setOnClickListener(v -> {
-            Toast.makeText(MainActivity.this, "食運天平開發中...", Toast.LENGTH_SHORT).show();
-        });
-
-        // Intent intent = new Intent(this, MapActivity.class);
-        // startActivity(intent);
+    private void loadFragment(Fragment fragment) {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, fragment)
+                .commit();
     }
 }
