@@ -2,6 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+Properties properties = new Properties()
+if (project.rootProject.file('local.properties').canRead()) {
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+}
+
 android {
     namespace 'com.example.newjavaproject'
     compileSdk {
@@ -16,6 +21,8 @@ android {
         targetSdk 36
         versionCode 1
         versionName "1.0"
+
+        manifestPlaceholders = [ MAPS_API_KEY: properties.getProperty('MAPS_API_KEY', "") ]
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -40,4 +47,8 @@ dependencies {
     testImplementation libs.junit
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit
+
+    // Google Maps and Location Services dependencies
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    implementation 'com.google.android.gms:play-services-location:21.2.0'
 }
