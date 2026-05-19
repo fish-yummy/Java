@@ -6,24 +6,27 @@
     android:layout_height="wrap_content"
     android:layout_marginVertical="8dp"
     android:layout_marginHorizontal="4dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp">
+    app:cardCornerRadius="16dp"
+    app:cardElevation="2dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="12dp"
+        android:padding="16dp"
         android:gravity="center_vertical">
 
         <ImageView
             android:id="@+id/img_food"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@android:drawable/ic_menu_gallery"
-            app:tint="#FF9800"
-            android:background="#FFF3E0"
-            android:padding="8dp"/>
+            app:tint="#0984E3"
+            android:background="@drawable/bg_circle_light_blue"
+            android:padding="12dp"/>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -36,18 +39,16 @@
                 android:id="@+id/tv_food_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="高蛋白補給"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#333333"/>
+                android:textColor="#2D3436"/>
 
             <TextView
                 android:id="@+id/tv_food_desc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="建議在運動後 30 分鐘內食用，促進肌肉修復。"
                 android:textSize="14sp"
-                android:textColor="#777777"
+                android:textColor="#636E72"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
     </LinearLayout>
