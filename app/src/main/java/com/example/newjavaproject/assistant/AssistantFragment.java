@@ -1,5 +1,10 @@
 package com.example.newjavaproject.assistant;
 
+import android.content.Context;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -7,33 +12,67 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
-
 
 import com.example.newjavaproject.data.SharedPrefsManager;
 import com.example.newjavaproject.R;
 
-public class AssistantFragment extends Fragment {
+import java.util.Locale;
 
-  
-    private Handler beatHandler;
-    private Runnable beatRunnable;
+public class AssistantFragment extends Fragment implements SensorEventListener {
+
+    private Handler timeHandler;
+    private Runnable timeRunnable;
     private SharedPrefsManager prefsManager;
 
-    // 狀態變數
+    // UI 元件
+    private Button btnStartStop;
+    private Button btnResetTarget;
+    private TextView tvTodayAccumulatedTitle;
+    private TextView tvStatusHint;
+    
+    // 時間組
+    private TextView tvTimeCurrent, tvTimeTarget, tvTimePercent;
+    private ProgressBar progressCircleTime;
+    
+    // 里程組
+    private TextView tvDistanceCurrent, tvDistanceTarget, tvDistancePercent;
+    private ProgressBar progressCircleDistance;
+
+    // 狀態與卡片元件
+    private TextView tvPoseReminderStatus;
+    private TextView tvCaloriesBurnt; // 🌟 卡路里顯示文字
+
+    // 數據控制變數
     private boolean isPlaying = false;
-    private long currentSessionTime = 0; // 本次運動秒數
+    private long currentSessionTime = 0; 
+    private double currentDistanceInKm = 0.0;
+    private long targetTimeInSeconds = 0;  
+    private double targetDistanceInKm = 0.0;
+
+    // 動態運動偵測變數
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private long lastMovementTime = 0; 
+    private static final int MOVEMENT_CHECK_INTERVAL_MS = 5000;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // 初始化 Handler 
-        beatHandler = new Handler(Looper.getMainLooper());
-        // 初始化SharedPrefsManager
+        timeHandler = new Handler(Looper.getMainLooper());
         prefsManager = new SharedPrefsManager(requireContext());
+
+        sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        }
     }
 
     @Nullable
@@ -46,60 +85,234 @@ public class AssistantFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // UI 綁定 (假設 XML 中有這些元件)
-        Button btnStartStop = view.findViewById(R.id.btn_start_stop);
-        TextView tvTimeDisplay = view.findViewById(R.id.tv_time_display);
+        // UI 綁定
+        btnStartStop = view.findViewById(R.id.btn_start_stop);
+        btnResetTarget = view.findViewById(R.id.btn_reset_target);
+        tvTodayAccumulatedTitle = view.findViewById(R.id.tv_today_accumulated_title);
+        tvStatusHint = view.findViewById(R.id.tv_status_hint);
+        tvTimeCurrent = view.findViewById(R.id.tv_time_current);
+        tvTimeTarget = view.findViewById(R.id.tv_time_target);
+        tvTimePercent = view.findViewById(R.id.tv_time_percent);
+        progressCircleTime = view.findViewById(R.id.progress_circle_time);
+        tvDistanceCurrent = view.findViewById(R.id.tv_distance_current);
+        tvDistanceTarget = view.findViewById(R.id.tv_distance_target);
+        tvDistancePercent = view.findViewById(R.id.tv_distance_percent);
+        progressCircleDistance = view.findViewById(R.id.progress_circle_distance);
+        
+        tvPoseReminderStatus = view.findViewById(R.id.tv_pose_reminder_status);
+        tvCaloriesBurnt = view.findViewById(R.id.tv_calories_burnt);
 
-        // [組員任務] 實作節拍器核心邏輯
-        beatRunnable = new Runnable() {
+        loadSavedProgress();
+
+        timeRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isPlaying) {
-                    // TODO: 1. 播放音效
+                    currentSessionTime++;
+                    currentDistanceInKm = currentSessionTime * 0.0012; // 估算里程
                     
-                    // TODO: 2. currentSessionTime 加 1 秒，並更新 tvTimeDisplay 畫面
+                    updateDynamicUI();
                     
-                    // 3. 呼叫自己，形成迴圈 (假設超慢跑頻率為 180 BPM，約每 333 毫秒響一次)
-                    // TODO: 將 1000 替換成使用者設定的頻率變數
-                    beatHandler.postDelayed(this, 1000); 
+                    // 檢查感測器狀態
+                    if (System.currentTimeMillis() - lastMovementTime > MOVEMENT_CHECK_INTERVAL_MS) {
+                        tvPoseReminderStatus.setText("靜止中");
+                        tvPoseReminderStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, null));
+                    }
+
+                    // 雙重達標判定
+                    boolean isTimeReached = targetTimeInSeconds > 0 && currentSessionTime >= targetTimeInSeconds;
+                    boolean isDistanceReached = targetDistanceInKm > 0.0 && currentDistanceInKm >= targetDistanceInKm;
+                    
+                    if (isTimeReached && isDistanceReached) {
+                        tvStatusHint.setText("🎉 太棒了！今日運動目標全部達標！");
+                        stopExerciseAndUpdateUI();
+                        return;
+                    }
+                    
+                    timeHandler.postDelayed(this, 1000);
                 }
             }
         };
 
         btnStartStop.setOnClickListener(v -> {
-            if (!isPlaying) {
-                // 開始運動
-                isPlaying = true;
-                beatHandler.post(beatRunnable); // 啟動節拍器
-                btnStartStop.setText("停止運動");
-            } else {
-                // 停止運動
-                stopMetronomeAndSaveData();
-                btnStartStop.setText("開始運動");
-            }
+            if (!isPlaying) { startExercise(); } else { stopExerciseAndUpdateUI(); }
         });
-    }
 
-    // ==========================================
-    // 架構師的防護網：生命週期管理
-    // ==========================================
-    @Override
-    public void onPause() {
-        super.onPause();
-        // 當使用者切換到「氧森地圖」或退回桌面時，強制停止並存檔
-        if (isPlaying) {
-            stopMetronomeAndSaveData();
-            // TODO: (UI) 若有抓到 Button，記得把按鈕文字改回 "開始運動"
+        btnResetTarget.setOnClickListener(v -> {
+            if (isPlaying) {
+                Toast.makeText(requireContext(), "請先停止運動，才能重新設定目標喔！", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            showTargetInputDialog();
+        });
+
+        if (targetTimeInSeconds == 0 && targetDistanceInKm == 0.0) {
+            view.post(this::showTargetInputDialog);
         }
     }
 
-    private void stopMetronomeAndSaveData() {
-        isPlaying = false;
-        // 清除尚未執行的節拍，防止 Memory Leak
-        beatHandler.removeCallbacksAndMessages(null); 
+    private void startExercise() {
+        isPlaying = true;
+        btnStartStop.setText("停止運動");
+        btnStartStop.setBackgroundColor(getResources().getColor(android.R.color.holo_red_dark, null));
+        btnResetTarget.setVisibility(View.GONE);
+        tvStatusHint.setText("運動中...請維持步伐與呼吸");
         
-        // 呼叫 SharedPrefsManager 儲存 currentSessionTime 與更新天數
-        // TODO: prefsManager.addExerciseTime(currentSessionTime);
-        // ... (記得儲存完將 currentSessionTime 歸零)
+        lastMovementTime = System.currentTimeMillis();
+        tvPoseReminderStatus.setText("穩定維持");
+        tvPoseReminderStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
+
+        if (sensorManager != null && accelerometer != null) {
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        }
+
+        timeHandler.post(timeRunnable);
+    }
+
+    private void stopExerciseAndUpdateUI() {
+        isPlaying = false;
+        timeHandler.removeCallbacksAndMessages(null); 
+        
+        btnStartStop.setText("開始運動");
+        btnStartStop.setBackgroundColor(0xff2e7d32); 
+        btnResetTarget.setVisibility(View.VISIBLE);
+        
+        tvPoseReminderStatus.setText("未啟動");
+        tvPoseReminderStatus.setTextColor(0xff4caf50);
+
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+        }
+
+        saveCurrentProgress();
+        
+        if (currentSessionTime > 0) {
+            try {
+                prefsManager.addExerciseTime(currentSessionTime);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            float x = event.values[0]; float y = event.values[1]; float z = event.values[2];
+            double acceleration = Math.sqrt(x * x + y * y + z * z);
+            
+            if (Math.abs(acceleration - SensorManager.GRAVITY_EARTH) > 1.5) {
+                lastMovementTime = System.currentTimeMillis();
+                if (isPlaying) {
+                    tvPoseReminderStatus.setText("穩定維持");
+                    tvPoseReminderStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark, null));
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+
+    private void loadSavedProgress() {
+        android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", android.content.Context.MODE_PRIVATE);
+        targetTimeInSeconds = sp.getLong("target_time", 0);
+        targetDistanceInKm = Double.longBitsToDouble(sp.getLong("target_distance", Double.doubleToLongBits(0.0)));
+        currentSessionTime = sp.getLong("current_time", 0);
+        currentDistanceInKm = currentSessionTime * 0.0012;
+
+        if (targetTimeInSeconds > 0 || targetDistanceInKm > 0.0) {
+            long minutes = targetTimeInSeconds / 60;
+            tvTodayAccumulatedTitle.setText("今日目標：" + minutes + " 分鐘");
+            tvStatusHint.setText("歡迎回來，隨時可以點擊開始！");
+            updateDynamicUI();
+        }
+    }
+
+    private void saveCurrentProgress() {
+        android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", android.content.Context.MODE_PRIVATE);
+        android.content.SharedPreferences.Editor editor = sp.edit();
+        editor.putLong("target_time", targetTimeInSeconds);
+        editor.putLong("target_distance", Double.doubleToLongBits(targetDistanceInKm));
+        editor.putLong("current_time", currentSessionTime);
+        editor.apply();
+    }
+
+    private void updateDynamicUI() {
+        // 1. 時間進度
+        long currentMin = currentSessionTime / 60;
+        long currentSec = currentSessionTime % 60;
+        tvTimeCurrent.setText(String.format(Locale.getDefault(), "%02d:%02d", currentMin, currentSec));
+        tvTimeTarget.setText(String.format(Locale.getDefault(), " / %02d:00", targetTimeInSeconds / 60));
+        
+        int timePercent = targetTimeInSeconds > 0 ? (int) (((double) currentSessionTime / targetTimeInSeconds) * 100) : 0;
+        if (timePercent > 100) timePercent = 100;
+        tvTimePercent.setText(timePercent + "%");
+        progressCircleTime.setProgress(timePercent);
+
+        // 2. 里程進度
+        tvDistanceCurrent.setText(String.format(Locale.getDefault(), "%.2f", currentDistanceInKm));
+        tvDistanceTarget.setText(String.format(Locale.getDefault(), " / %.2f km", targetDistanceInKm));
+        
+        int distPercent = targetDistanceInKm > 0.0 ? (int) ((currentDistanceInKm / targetDistanceInKm) * 100) : 0;
+        if (distPercent > 100) distPercent = 100;
+        tvDistancePercent.setText(distPercent + "%");
+        progressCircleDistance.setProgress(distPercent);
+
+        // 3. 🌟 實時計算卡路里：依據普遍慢跑/超慢跑公式（約每公里消耗 60 大卡估算）
+        double calories = currentDistanceInKm * 60.0;
+        tvCaloriesBurnt.setText(String.format(Locale.getDefault(), "%.1f kcal", calories));
+        
+        saveCurrentProgress();
+    }
+
+    private void showTargetInputDialog() {
+        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_target_input, null);
+        EditText etMinutes = dialogView.findViewById(R.id.et_target_minutes);
+        EditText etDistance = dialogView.findViewById(R.id.et_target_distance);
+
+        if (targetTimeInSeconds > 0) etMinutes.setText(String.valueOf(targetTimeInSeconds / 60));
+        if (targetDistanceInKm > 0.0) etDistance.setText(String.valueOf(targetDistanceInKm));
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle("今日運動目標設定")
+                .setView(dialogView)
+                .setCancelable(false)
+                .setPositiveButton("確認設定", null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> {
+            Button button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            button.setOnClickListener(view -> {
+                String minStr = etMinutes.getText().toString().trim();
+                String distStr = etDistance.getText().toString().trim();
+
+                if (minStr.isEmpty() || distStr.isEmpty()) {
+                    Toast.makeText(requireContext(), "請輸入預計時長與里程數", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                long minutes = Long.parseLong(minStr);
+                targetTimeInSeconds = minutes * 60;
+                targetDistanceInKm = Double.parseDouble(distStr);
+                
+                currentSessionTime = 0;
+                currentDistanceInKm = 0.0;
+
+                tvTodayAccumulatedTitle.setText("今日目標：" + minutes + " 分鐘");
+                tvStatusHint.setText("新目標設定成功，準備起跑！");
+                
+                updateDynamicUI();
+                dialog.dismiss();
+            });
+        });
+
+        dialog.show();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (isPlaying) { stopExerciseAndUpdateUI(); }
     }
 }
