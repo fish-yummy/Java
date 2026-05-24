@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="預計運動時長 (分鐘)："
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_target_minutes"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:hint="例如：10"
+        android:inputType="number"
+        android:textSize="18sp"
+        android:background="@android:drawable/editbox_background"
+        android:paddingHorizontal="12dp"
+        android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="預計跑多少里程 (公里)："
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_target_distance"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:hint="例如：1.5"
+        android:inputType="numberDecimal"
+        android:textSize="18sp"
+        android:background="@android:drawable/editbox_background"
+        android:paddingHorizontal="12dp" />
+
+</LinearLayout>
