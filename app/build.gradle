@@ -59,12 +59,9 @@ dependencies {
     // Google Maps and Location Services dependencies
     implementation 'com.google.android.gms:play-services-maps:18.2.0'
     implementation 'com.google.android.gms:play-services-location:21.2.0'
-<<<<<<< HEAD
+
 
     implementation 'org.osmdroid:osmdroid-android:6.1.18' 
     implementation 'androidx.preference:preference:1.2.1'
-    
-=======
     implementation 'com.google.code.gson:gson:2.10.1'
->>>>>>> 9a6b022 (5/24慢跑助手，歷史紀錄的部分還有一點問題沒辦法記錄下來)
 }
