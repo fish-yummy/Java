@@ -18,19 +18,27 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+// 匯入 osmdroid 相關套件
+import org.osmdroid.config.Configuration;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
+
 import com.example.newjavaproject.map.network.AqiApiClient;
 import com.example.newjavaproject.R;
 
 
 
 
-
-public class MapFragment extends Fragment implements OnMapReadyCallback{
-    private GoogleMap mMap;
+public class MapFragment extends Fragment {
+    private MapView mMap;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        // 重要：初始化 osmdroid 配置，必須在載入 layout 之前呼叫
+        Configuration.getInstance().load(getContext(), androidx.preference.PreferenceManager.getDefaultSharedPreferences(getContext()));
+        Configuration.getInstance().setUserAgentValue(requireContext().getPackageName());
         
         return inflater.inflate(R.layout.fragment_map, container, false);
     }
@@ -39,74 +47,67 @@ public class MapFragment extends Fragment implements OnMapReadyCallback{
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager()
-                .findFragmentById(R.id.map);
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
-        }
+        // 1. 初始化 osmdroid 地圖
+        mMap = view.findViewById(R.id.mapview);
+        mMap.setMultiTouchControls(true); // 啟用兩指縮放功能
 
+        setupMap();
+
+        // 2. 保留你原本的 AQI API 邏輯
         TextView tvAqiValue = view.findViewById(R.id.tv_aqi_value);
         TextView tvAqiStatus = view.findViewById(R.id.tv_aqi_status);
-
         AqiApiClient apiClient = new AqiApiClient();
         apiClient.fetchCurrentAqi(new AqiApiClient.AqiCallback() {
             @Override
             public void onSuccess(String aqiValue, String status) {
-                //在這裡將拿到的 AQI 資料更新到畫面上
-                // TODO: 將 tvAqiValue 的文字設為 aqiValue
-                // TODO: 將 tvAqiStatus 的文字設為 "AQI (" + status + ")"
-                // TODO: (進階) 根據 aqiValue 的數值，動態改變 tvAqiValue 的顏色 (例如綠色或紅色)
+                // TODO: 處理 AQI 成功邏輯
             }
-
             @Override
             public void onError(String errorMessage) {
-                // 處理 API 失敗狀態
-                // TODO: 在畫面上顯示錯誤提示，或將 AQI 數值顯示為 "--"
+                // TODO: 處理 AQI 失敗邏輯
             }
         });
 
-
-
+        // 3. 保留你原本的 UI 點擊事件
         CardView cardMapPreview = view.findViewById(R.id.card_map_preview);
         cardMapPreview.setOnClickListener(v -> {
-            // 這裡負責處理點擊後變成全螢幕地圖的邏輯。
-        
-            Toast.makeText(getContext(), "[架構] 點擊了地圖預覽，請在此啟動全螢幕地圖 Activity 或切換 Fragment。", Toast.LENGTH_LONG).show();
-            
-            
-            
+            Toast.makeText(getContext(), "[架構] 點擊了地圖預覽...", Toast.LENGTH_LONG).show();
         });
 
         CardView cardChartPreview = view.findViewById(R.id.card_chart_placeholder);
         cardChartPreview.setOnClickListener(v -> {
-            // 如果要放圖表，我原本想是一般頁面上的是預覽，點擊之後就會切換成全螢幕，怎麼切可以寫這裡
-            Toast.makeText(getContext(), "[架構] 點擊了趨勢圖，在此切換至全螢幕數據圖表畫面。", Toast.LENGTH_LONG).show();
-            
-           
-            // Intent intent = new Intent(getActivity(), FullScreenChartActivity.class);
-            // startActivity(intent);
+            Toast.makeText(getContext(), "[架構] 點擊了趨勢圖...", Toast.LENGTH_LONG).show();
         });
-
     }
 
+    private void setupMap() {
+        // 將原本的 LatLng 替換為 GeoPoint
+        GeoPoint testLocation = new GeoPoint(23.545, 120.428);
+        
+        // 設定地圖視角與縮放級別
+        mMap.getController().setZoom(15.0);
+        mMap.getController().setCenter(testLocation);
+
+        // 建立並加入標記 (取代原本的 MarkerOptions)
+        Marker startMarker = new Marker(mMap);
+        startMarker.setPosition(testLocation);
+        startMarker.setTitle("氧森地圖測試成功");
+        startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+        mMap.getOverlays().add(startMarker);
+    }
     
+    // osmdroid 建議加入生命週期管理以節省資源
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mMap != null) mMap.onResume();
+    }
 
     @Override
-
-    public void onMapReady(@NonNull GoogleMap googleMap){
-        mMap = googleMap;
-
-        // 處理綠色步道的地圖標記
-        // TODO: 1. 建立周邊公園或健走路徑的座標資料 (LatLng)
-        // TODO: 2. 使用 mMap.addMarker() 將這些公園標記在地圖上
-        //底下5行我測試用的
-
-        LatLng testLocation = new LatLng(23.545, 120.428);
-        mMap.addMarker(new MarkerOptions()
-                .position(testLocation)
-                .title("氧森地圖測試成功"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(testLocation, 15f));
-
-
+    public void onPause() {
+        super.onPause();
+        if (mMap != null) mMap.onPause();
     }
 }
+
+
