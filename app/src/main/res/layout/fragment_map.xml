@@ -4,147 +4,179 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F7FBF7"
-    android:fillViewport="true">
+    android:background="#F5F7FA"
+    tools:context=".map.MapFragment">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="50dp"
-        android:paddingBottom="20dp"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp">
+        android:padding="16dp">
 
-       
         <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
+            android:id="@+id/tv_main_title"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="養森地圖"
+            android:layout_marginTop="24dp"
+            android:text="氧森地圖"
             android:textSize="32sp"
             android:textStyle="bold"
-            android:textColor="#333333"
+            android:textColor="#333333" 
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="12dp" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
-        
         <androidx.cardview.widget.CardView
             android:id="@+id/card_aqi"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_marginTop="32dp"
-            app:cardCornerRadius="100dp"
-            app:cardElevation="6dp"
-            app:layout_constraintDimensionRatio="1:1"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:layout_constraintTop_toBottomOf="@id/tv_main_title"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/tv_title"
-            app:layout_constraintWidth_percent="0.4">
+            app:layout_constraintEnd_toEndOf="parent">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_circle_aqi"
-                android:gravity="center"
-                android:orientation="vertical">
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="即時空氣品質指標"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#555555"/>
 
                 <TextView
                     android:id="@+id/tv_aqi_value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="42"
-                    android:textColor="#1B5E20"
-                    android:textSize="48sp"
-                    android:textStyle="bold" />
+                    android:layout_marginTop="8dp"
+                    tools:text="42"
+                    android:textSize="56sp"
+                    android:textStyle="bold"
+                    android:textColor="#4CAF50"/> 
 
                 <TextView
                     android:id="@+id/tv_aqi_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="AQI (良好)"
-                    android:textColor="#1B5E20"
-                    android:textSize="14sp" />
+                    android:layout_marginTop="4dp"
+                    tools:text="AQI (良好)"
+                    android:textSize="16sp"
+                    android:textColor="#888888"/>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <androidx.cardview.widget.CardView
+            android:id="@+id/card_map_preview"
+            android:layout_width="0dp"
+            android:layout_height="220dp"
+            android:layout_marginTop="20dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:layout_constraintTop_toBottomOf="@id/card_aqi"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-      
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <org.osmdroid.views.MapView
+                    android:id="@+id/mapview"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="false"
+                    android:focusable="false" />
+            </FrameLayout>
+        </androidx.cardview.widget.CardView>
+
         <androidx.cardview.widget.CardView
             android:id="@+id/card_chart_placeholder"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_marginStart="16dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground"
-            app:cardBackgroundColor="#FFFFFF"
+            android:layout_height="120dp"
+            android:layout_marginTop="16dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp"
-            app:layout_constraintBottom_toBottomOf="@+id/card_aqi"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/card_aqi"
-            app:layout_constraintTop_toTopOf="@+id/card_aqi">
+            app:layout_constraintTop_toBottomOf="@id/card_map_preview"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:text="點擊查看歷史趨勢圖表"
                 android:gravity="center"
-                android:orientation="vertical"
-                android:padding="10dp">
+                android:textSize="16sp"
+                android:textColor="#999999"
+                android:background="#EAEAEA"/>
+        </androidx.cardview.widget.CardView>
 
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="80dp"
-                    android:alpha="0.3"
-                    android:src="@android:drawable/ic_menu_sort_by_size"
-                    app:tint="#4CAF50" />
+        <TextView
+            android:id="@+id/tv_path_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="附近綠色健走路徑"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            app:layout_constraintTop_toBottomOf="@id/card_chart_placeholder"
+            app:layout_constraintStart_toStartOf="parent"/>
 
+        <LinearLayout
+            android:id="@+id/layout_walking_paths"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            app:layout_constraintTop_toBottomOf="@id/tv_path_title"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="1dp">
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center"
-                    android:text="[佔位] 或許可以放個折線圖?"
-                    android:textColor="#888888"
-                    android:textSize="12sp" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
+                    android:padding="16dp"
+                    android:text="📍 民雄鄉 - 中正大學後山綠色步道 (1.5 km)"
+                    android:textColor="#444444"
+                    android:textSize="14sp"/>
+            </androidx.cardview.widget.CardView>
 
-
-       
-        <androidx.cardview.widget.CardView
-            android:id="@+id/card_map_preview"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginTop="24dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="8dp"
-            app:layout_constraintTop_toBottomOf="@+id/card_aqi">
-
-            <androidx.fragment.app.FragmentContainerView
-                android:id="@+id/map"
-                android:name="com.google.android.gms.maps.SupportMapFragment"
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                tools:layout="@layout/dummy_map" />
-        </androidx.cardview.widget.CardView>
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="1dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="16dp"
+                    android:text="📍 民雄鄉 - 國家廣播文物館園區小徑 (0.8 km)"
+                    android:textColor="#444444"
+                    android:textSize="14sp"/>
+            </androidx.cardview.widget.CardView>
 
-
-       
-        <TextView
-            android:id="@+id/tv_forest_info"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="24dp"
-            android:lineSpacingExtra="6sp"
-            android:text="附近健走路徑資訊：\n\n[佔位] 這裡將顯示使用 Google Maps API 標記的鄰近公園與健走路徑詳細清單之類的資訊等等\n\n498498489854489498\n\n\n\n\n\n64646\n\n\n\n515165。"
-            android:textColor="#333333"
-            android:textSize="16sp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/card_map_preview" />
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.core.widget.NestedScrollView>
