@@ -104,13 +104,16 @@ public class AssistantFragment extends Fragment implements SensorEventListener {
 
         Button btnClearHistory = view.findViewById(R.id.btn_clear_history);
         btnClearHistory.setOnClickListener(v -> {
-        dummyHistoryList.clear();
-        updateHistoryUI();
-        Toast.makeText(requireContext(), "歷史紀錄已清空", Toast.LENGTH_SHORT).show();
-    });
+            dummyHistoryList.clear();
+            saveHistoryToPrefs(); // 清空後也要同步寫入儲存空間，否則重開App紀錄又會回來
+            updateHistoryUI();
+            Toast.makeText(requireContext(), "歷史紀錄已清空", Toast.LENGTH_SHORT).show();
+        });
 
+        // 【優化點 1】載入進度與歷史紀錄，並刷新 UI
         loadSavedProgress();
-        updateHistoryUI();
+        loadHistoryFromPrefs(); // 先從本地載入歷史紀錄資料
+        updateHistoryUI();      // 再繪製到畫面上
 
         timeRunnable = new Runnable() {
             @Override
@@ -131,8 +134,11 @@ public class AssistantFragment extends Fragment implements SensorEventListener {
                     if (isTimeReached && isDistanceReached) {
                         tvStatusHint.setText("🎉 太棒了！今日運動目標全部達標！");
                         stopExerciseAndUpdateUI();
-                        return;
+                        return; // 達標停止後直接中斷，不要再往下執行 postDelayed
                     }
+                    
+                    // 【優化點 2】修正潛在的計時器重複執行的 Bug
+                    // 確保只有在「依然處於播放狀態」且「未達標」的情況下才繼續推進下一秒
                     timeHandler.postDelayed(this, 1000);
                 }
             }
@@ -154,56 +160,53 @@ public class AssistantFragment extends Fragment implements SensorEventListener {
             view.post(this::showTargetInputDialog);
         }
     }
-    private final com.google.gson.Gson gson = new com.google.gson.Gson();
 
-    // 修改後的 load/save 邏輯
     private void saveHistoryToPrefs() {
-    android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", Context.MODE_PRIVATE);
-    // 將列表轉為長字串 (以 ||| 作為分隔符號)
-    StringBuilder sb = new StringBuilder();
-    for (String s : dummyHistoryList) {
-        sb.append(s).append("|||");
+        if (getContext() == null) return;
+        android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", Context.MODE_PRIVATE);
+        StringBuilder sb = new StringBuilder();
+        for (String s : dummyHistoryList) {
+            sb.append(s).append("|||");
+        }
+        sp.edit().putString("history_records", sb.toString()).apply();
     }
-    sp.edit().putString("history_records", sb.toString()).apply();
-}
 
     private void loadHistoryFromPrefs() {
-    android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", Context.MODE_PRIVATE);
-    String savedRecords = sp.getString("history_records", "");
-    
-    dummyHistoryList.clear(); 
-    
-    if (savedRecords != null && !savedRecords.isEmpty()) {
-        String[] parts = savedRecords.split("\\|\\|\\|");
-        for (String s : parts) {
-            if (!s.isEmpty()) { // 確保不加入空字串
-                dummyHistoryList.add(s);
+        if (getContext() == null) return;
+        android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", Context.MODE_PRIVATE);
+        String savedRecords = sp.getString("history_records", "");
+        
+        dummyHistoryList.clear(); 
+        
+        if (savedRecords != null && !savedRecords.isEmpty()) {
+            String[] parts = savedRecords.split("\\|\\|\\|");
+            for (String s : parts) {
+                if (!s.isEmpty()) { 
+                    dummyHistoryList.add(s);
+                }
             }
         }
     }
-}
 
     private void updateHistoryUI() {
-    if (containerHistoryRecords == null) return;
-    containerHistoryRecords.removeAllViews();
+        if (containerHistoryRecords == null || getContext() == null) return;
+        containerHistoryRecords.removeAllViews();
 
-    for (String record : dummyHistoryList) {
-        TextView itemText = new TextView(requireContext());
-        itemText.setText(record);
-        itemText.setTextSize(13);
-        itemText.setTextColor(0xff555555);
-        itemText.setPadding(4, 12, 4, 12);
-        
-        View divider = new View(requireContext());
-        divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
-        divider.setBackgroundColor(0xffe0e0e0);
+        for (String record : dummyHistoryList) {
+            TextView itemText = new TextView(requireContext());
+            itemText.setText(record);
+            itemText.setTextSize(13);
+            itemText.setTextColor(0xff555555);
+            itemText.setPadding(4, 12, 4, 12);
+            
+            View divider = new View(requireContext());
+            divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
+            divider.setBackgroundColor(0xffe0e0e0);
 
-        containerHistoryRecords.addView(itemText);
-        containerHistoryRecords.addView(divider);
+            containerHistoryRecords.addView(itemText);
+            containerHistoryRecords.addView(divider);
+        }
     }
-}
-
-    // ... (startExercise, stopExerciseAndUpdateUI, onSensorChanged, 等其他方法保持不變)
 
     private void startExercise() {
         isPlaying = true;
@@ -265,6 +268,7 @@ public class AssistantFragment extends Fragment implements SensorEventListener {
     public void onAccuracyChanged(Sensor sensor, int accuracy) {}
 
     private void loadSavedProgress() {
+        if (getContext() == null) return;
         android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", android.content.Context.MODE_PRIVATE);
         targetTimeInSeconds = sp.getLong("target_time", 0);
         targetDistanceInKm = Double.longBitsToDouble(sp.getLong("target_distance", Double.doubleToLongBits(0.0)));
@@ -279,6 +283,7 @@ public class AssistantFragment extends Fragment implements SensorEventListener {
     }
 
     private void saveCurrentProgress() {
+        if (getContext() == null) return;
         android.content.SharedPreferences sp = requireContext().getSharedPreferences("RunningPrefs", android.content.Context.MODE_PRIVATE);
         android.content.SharedPreferences.Editor editor = sp.edit();
         editor.putLong("target_time", targetTimeInSeconds);
