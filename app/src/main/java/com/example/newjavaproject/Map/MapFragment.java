@@ -17,6 +17,8 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.tasks.CancellationTokenSource;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -136,40 +138,39 @@ public class MapFragment extends Fragment {
             return;
         }
 
-        // 取得最後已知位置
-        fusedLocationClient.getLastLocation().addOnSuccessListener(requireActivity(), location -> {
-            if (location != null) {
-                // 成功抓到定位！取得經緯度
-                double lat = location.getLatitude();
-                double lon = location.getLongitude();
+        // 【步驟四】取得經緯度並移動地圖
+        // 使用 getCurrentLocation 主動要求最新鮮的高精度定位
+        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.getToken())
+                .addOnSuccessListener(requireActivity(), location -> {
+                    if (location != null) {
+                        // 成功抓到定位！取得經緯度
+                        double lat = location.getLatitude();
+                        double lon = location.getLongitude();
 
-                // 轉換成 osmdroid 的 GeoPoint
-                GeoPoint userLocation = new GeoPoint(lat, lon);
-                
-                // 設定地圖視角與縮放級別 (16.0 看街道比較清楚)
-                mMap.getController().setZoom(16.0);
-                mMap.getController().setCenter(userLocation);
+                        // 轉換成 osmdroid 的 GeoPoint
+                        GeoPoint userLocation = new GeoPoint(lat, lon);
+                        
+                        // 設定地圖視角與縮放級別 (16.0 看街道比較清楚)
+                        mMap.getController().setZoom(16.0);
+                        mMap.getController().setCenter(userLocation);
 
-                // 在地圖上放上一個標記代表 "現在位置"
-                Marker myMarker = new Marker(mMap);
-                myMarker.setPosition(userLocation);
-                myMarker.setTitle("您的目前位置");
-                myMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                mMap.getOverlays().add(myMarker);
-                
-                // 刷新地圖顯示
-                mMap.invalidate();
+                        // 在地圖上放上一個標記代表 "現在位置"
+                        Marker myMarker = new Marker(mMap);
+                        myMarker.setPosition(userLocation);
+                        myMarker.setTitle("您的目前位置");
+                        myMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                        mMap.getOverlays().add(myMarker);
+                        
+                        // 刷新地圖顯示
+                        mMap.invalidate();
 
-                Toast.makeText(getContext(), "定位成功！", Toast.LENGTH_SHORT).show();
-                
-                // 💡 預告：我們之後會在這裡呼叫 Overpass API，把 userLocation 傳過去！
-                // fetchNearbyParks(lat, lon); 
-
-            } else {
-                Toast.makeText(getContext(), "無法取得定位，請確認手機是否開啟 GPS", Toast.LENGTH_LONG).show();
-                // 如果抓不到定位，可以退回你原本寫的預設點位 (23.545, 120.428)
-            }
-        });
+                        Toast.makeText(getContext(), "定位成功！", Toast.LENGTH_SHORT).show();
+                        
+                    } else {
+                        Toast.makeText(getContext(), "無法取得定位，請確認手機是否開啟 GPS", Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
     // private void setupMap() {
