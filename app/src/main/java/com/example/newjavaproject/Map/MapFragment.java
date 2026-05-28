@@ -18,11 +18,22 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+
+
 // 匯入 osmdroid 相關套件
 import org.osmdroid.config.Configuration;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 
 import com.example.newjavaproject.map.network.AqiApiClient;
 import com.example.newjavaproject.R;
@@ -33,6 +44,23 @@ import com.example.newjavaproject.R;
 public class MapFragment extends Fragment {
     private MapView mMap;
 
+    private FusedLocationProviderClient fusedLocationClient;
+
+    private final ActivityResultLauncher<String[]> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                Boolean fineLocationGranted = result.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false);
+                Boolean coarseLocationGranted = result.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false);
+
+                if ((fineLocationGranted != null && fineLocationGranted) || 
+                    (coarseLocationGranted != null && coarseLocationGranted)) {
+                    // 使用者點擊了「允許」，開始抓位置
+                    getCurrentLocation();
+                } else {
+                    // 使用者拒絕了
+                    Toast.makeText(getContext(), "需要定位權限才能幫長輩找到附近的步道喔！", Toast.LENGTH_LONG).show();
+                }
+            });
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -41,6 +69,8 @@ public class MapFragment extends Fragment {
         Configuration.getInstance().setUserAgentValue(requireContext().getPackageName());
         
         return inflater.inflate(R.layout.fragment_map, container, false);
+
+        
     }
 
     @Override
@@ -49,9 +79,13 @@ public class MapFragment extends Fragment {
 
         // 1. 初始化 osmdroid 地圖
         mMap = view.findViewById(R.id.mapview);
+        mMap.setTileSource(TileSourceFactory.MAPNIK);
         mMap.setMultiTouchControls(true); // 啟用兩指縮放功能
 
-        setupMap();
+        // setupMap();
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
+        checkLocationPermission();
 
         // 2. 保留你原本的 AQI API 邏輯
         TextView tvAqiValue = view.findViewById(R.id.tv_aqi_value);
@@ -80,21 +114,79 @@ public class MapFragment extends Fragment {
         });
     }
 
-    private void setupMap() {
-        // 將原本的 LatLng 替換為 GeoPoint
-        GeoPoint testLocation = new GeoPoint(23.545, 120.428);
-        
-        // 設定地圖視角與縮放級別
-        mMap.getController().setZoom(15.0);
-        mMap.getController().setCenter(testLocation);
-
-        // 建立並加入標記 (取代原本的 MarkerOptions)
-        Marker startMarker = new Marker(mMap);
-        startMarker.setPosition(testLocation);
-        startMarker.setTitle("氧森地圖測試成功");
-        startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        mMap.getOverlays().add(startMarker);
+    private void checkLocationPermission() {
+        // 檢查是否已經有精確定位權限
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            // 已經有權限了，直接抓位置
+            getCurrentLocation();
+        } else {
+            // 沒權限，跳出視窗請求權限
+            requestPermissionLauncher.launch(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+        }
     }
+
+    // 【步驟四】取得經緯度並移動地圖
+    private void getCurrentLocation() {
+        // 再次確認權限 (IDE 安全檢查要求)
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        // 取得最後已知位置
+        fusedLocationClient.getLastLocation().addOnSuccessListener(requireActivity(), location -> {
+            if (location != null) {
+                // 成功抓到定位！取得經緯度
+                double lat = location.getLatitude();
+                double lon = location.getLongitude();
+
+                // 轉換成 osmdroid 的 GeoPoint
+                GeoPoint userLocation = new GeoPoint(lat, lon);
+                
+                // 設定地圖視角與縮放級別 (16.0 看街道比較清楚)
+                mMap.getController().setZoom(16.0);
+                mMap.getController().setCenter(userLocation);
+
+                // 在地圖上放上一個標記代表 "現在位置"
+                Marker myMarker = new Marker(mMap);
+                myMarker.setPosition(userLocation);
+                myMarker.setTitle("您的目前位置");
+                myMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                mMap.getOverlays().add(myMarker);
+                
+                // 刷新地圖顯示
+                mMap.invalidate();
+
+                Toast.makeText(getContext(), "定位成功！", Toast.LENGTH_SHORT).show();
+                
+                // 💡 預告：我們之後會在這裡呼叫 Overpass API，把 userLocation 傳過去！
+                // fetchNearbyParks(lat, lon); 
+
+            } else {
+                Toast.makeText(getContext(), "無法取得定位，請確認手機是否開啟 GPS", Toast.LENGTH_LONG).show();
+                // 如果抓不到定位，可以退回你原本寫的預設點位 (23.545, 120.428)
+            }
+        });
+    }
+
+    // private void setupMap() {
+    //     // 將原本的 LatLng 替換為 GeoPoint
+    //     GeoPoint testLocation = new GeoPoint(23.545, 120.428);
+        
+    //     // 設定地圖視角與縮放級別
+    //     mMap.getController().setZoom(15.0);
+    //     mMap.getController().setCenter(testLocation);
+
+    //     // 建立並加入標記 (取代原本的 MarkerOptions)
+    //     Marker startMarker = new Marker(mMap);
+    //     startMarker.setPosition(testLocation);
+    //     startMarker.setTitle("氧森地圖測試成功");
+    //     startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+    //     mMap.getOverlays().add(startMarker);
+    // }
     
     // osmdroid 建議加入生命週期管理以節省資源
     @Override
