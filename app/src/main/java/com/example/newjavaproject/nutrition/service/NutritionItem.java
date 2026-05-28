@@ -1,4 +1,4 @@
-package com.example.newjavaproject.nutrition;
+package com.example.newjavaproject.nutrition.service;
 
 // 這是一個資料模型，專門用來打包每一筆補給資料
 public class NutritionItem {

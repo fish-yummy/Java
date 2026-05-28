@@ -1,8 +1,5 @@
 package com.example.newjavaproject.nutrition;
 
-import android.app.AlertDialog;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,17 +7,11 @@ import android.view.ViewGroup;
 import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import com.example.newjavaproject.R;
-import com.example.newjavaproject.nutrition.adapter.NutritionAdapter;
-import java.util.ArrayList;
-import java.util.List;
 
 public class NutritionFragment extends Fragment {
-
-    private String selectedGender = "男";
 
     @Nullable
     @Override
@@ -30,73 +21,75 @@ public class NutritionFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
+    super.onViewCreated(view, savedInstanceState);
 
-        // 初始化元件
-        RecyclerView recyclerView = view.findViewById(R.id.recycler_nutrition);
-        Button btnWater = view.findViewById(R.id.btn_set_water_reminder);
-        EditText etW = view.findViewById(R.id.et_weight);
-        EditText etH = view.findViewById(R.id.et_height);
-        Button btnCalc = view.findViewById(R.id.btn_calculate);
-        ProgressBar pbBmi = view.findViewById(R.id.pb_bmi);
-        TextView tvBmi = view.findViewById(R.id.tv_bmi_result);
+    EditText etW = view.findViewById(R.id.et_weight);
+    EditText etH = view.findViewById(R.id.et_height);
+    Button btnCalc = view.findViewById(R.id.btn_calculate);
 
-        // RecyclerView 設定
-        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        List<NutritionItem> list = new ArrayList<>();
-        list.add(new NutritionItem("🏃‍♂️ 運動補給", "運動前補充碳水，運動後蛋白質。", android.R.drawable.ic_media_play));
-        list.add(new NutritionItem("💧 飲水建議", "每 30 分鐘補充水分。", android.R.drawable.ic_menu_info_details));
-        recyclerView.setAdapter(new NutritionAdapter(list));
+    btnCalc.setOnClickListener(v -> {
+    try {
+        // 1. 取得性別
+        RadioGroup rgGender = view.findViewById(R.id.rg_gender);
+        boolean isMale = (rgGender.getCheckedRadioButtonId() == R.id.rb_male);
 
-        // 飲水提醒 (15-300 分鐘)
-        btnWater.setOnClickListener(v -> showTimePickerDialog());
+        double w = Double.parseDouble(etW.getText().toString().trim());
+        double h = Double.parseDouble(etH.getText().toString().trim());
 
-        // 計算邏輯
-        btnCalc.setOnClickListener(v -> showGenderDialog(etW, etH, pbBmi, tvBmi));
-    }
+        // 計算 BMI 與熱量
+        double bmi = w / Math.pow(h / 100.0, 2);
+        // 男生公式: (10w + 6.25h - 5) * 1.375 | 女生公式: (10w + 6.25h - 161) * 1.375
+        double tdee = ((10 * w) + (6.25 * h) + (isMale ? 5 : -161)) * 1.375;
 
-    private void showGenderDialog(EditText etW, EditText etH, ProgressBar pb, TextView tv) {
-        String[] genders = {"男", "女"};
-        new AlertDialog.Builder(requireContext())
-            .setTitle("選擇性別")
-            .setSingleChoiceItems(genders, 0, (d, w) -> selectedGender = genders[w])
-            .setPositiveButton("計算", (d, w) -> performCalculation(etW, etH, pb, tv))
-            .show();
-    }
-
-    private void performCalculation(EditText etW, EditText etH, ProgressBar pb, TextView tv) {
-        try {
-            double w = Double.parseDouble(etW.getText().toString());
-            double h = Double.parseDouble(etH.getText().toString());
-            double bmi = w / ((h/100.0) * (h/100.0));
-            double tdee = ((10 * w) + (6.25 * h) - (selectedGender.equals("男") ? 5 : 161)) * 1.2;
-
-            // 更新 UI
-            pb.setProgress((int) Math.min(bmi, 35));
-            int color = (bmi < 18.5) ? Color.BLUE : (bmi < 24) ? Color.parseColor("#27AE60") : (bmi < 27) ? Color.parseColor("#F39C12") : Color.RED;
-            String status = (bmi < 18.5) ? "過輕" : (bmi < 24) ? "適中" : (bmi < 27) ? "過重" : "肥胖";
-
-            pb.setProgressTintList(ColorStateList.valueOf(color));
-            tv.setText(String.format("BMI: %.1f (%s)", bmi, status));
-            tv.setTextColor(color);
-
-            new AlertDialog.Builder(requireContext())
-                .setTitle("營養攝取建議")
-                .setMessage(String.format("每日總熱量: %.0f kcal\n\n🍚 澱粉: %.1f g\n💪 蛋白: %.1f g\n🥑 脂肪: %.1f g\n💧 水分: %.1f L", 
-                            tdee, (tdee*0.4)/4, (tdee*0.3)/4, (tdee*0.3)/9, w*0.035))
-                .setPositiveButton("知道了", null).show();
-        } catch (Exception e) {
-            Toast.makeText(getContext(), "請輸入數字", Toast.LENGTH_SHORT).show();
+        // 2. 根據性別與 BMI 判斷建議
+        String status = (bmi < 18.5) ? "體重過輕" : (bmi < 24) ? "體重正常" : (bmi < 27) ? "過重" : "肥胖";
+        
+        String advice;
+        if (isMale) {
+            advice = (bmi < 18.5) ? "男性：建議增加重量訓練與蛋白質攝取。" : 
+                     (bmi < 24) ? "男性：身體素質良好，保持運動習慣。" : 
+                     (bmi < 27) ? "男性：稍微減少熱量攝取，建議多做有氧。" : "男性：建議諮詢營養師規劃減脂計畫。";
+        } else {
+            advice = (bmi < 18.5) ? "女性：建議增加營養密度高的食物攝取。" : 
+                     (bmi < 24) ? "女性：體態標準，請維持目前的均衡飲食。" : 
+                     (bmi < 27) ? "女性：建議調整飲食比例，減少精緻澱粉。" : "女性：體脂過高，建議諮詢專業規劃健康飲食。";
         }
-    }
 
-    private void showTimePickerDialog() {
-        final NumberPicker picker = new NumberPicker(requireContext());
-        picker.setMinValue(15); picker.setMaxValue(300); picker.setValue(60);
-        new AlertDialog.Builder(requireContext())
-            .setTitle("提醒間隔 (15-300 分鐘)")
-            .setView(picker)
-            .setPositiveButton("確認", (d, w) -> Toast.makeText(getContext(), "已設定 " + picker.getValue() + " 分鐘", Toast.LENGTH_SHORT).show())
-            .show();
+        // 3. 更新 UI
+        TextView tvCalories = view.findViewById(R.id.tv_total_calories);
+        TextView tvBmiResult = view.findViewById(R.id.tv_bmi_result);
+        TextView tvBmiAdvice = view.findViewById(R.id.tv_bmi_advice_text);
+        
+        tvCalories.setText(String.format("🔥 建議每日總熱量\n%.0f kcal", tdee));
+        tvBmiResult.setText(String.format("性別: %s | BMI: %.1f (%s)", (isMale ? "男" : "女"), bmi, status));
+        tvBmiAdvice.setText(advice);
+
+        // 更新營養素卡片
+        ((TextView)view.findViewById(R.id.tv_carbs)).setText(String.format("🍚攝取澱粉\n%.1f g", (tdee * 0.4) / 4));
+        ((TextView)view.findViewById(R.id.tv_protein)).setText(String.format("💪蛋白質\n%.1f g", (tdee * 0.3) / 4));
+        ((TextView)view.findViewById(R.id.tv_fat)).setText(String.format("🥑脂肪\n%.1f g", (tdee * 0.3) / 9));
+
+        // 顯示卡片
+        view.findViewById(R.id.card_calories).setVisibility(View.VISIBLE);
+        view.findViewById(R.id.card_bmi_advice).setVisibility(View.VISIBLE);
+        view.findViewById(R.id.layout_nutrients).setVisibility(View.VISIBLE);
+        // 4. 動態顯示對應的體脂對照表圖片
+        ImageView ivChart = view.findViewById(R.id.iv_body_fat_chart);
+
+        // 根據性別切換圖片
+        if (isMale) {
+            ivChart.setImageResource(R.drawable.chart_male);
+        } else {
+            ivChart.setImageResource(R.drawable.chart_female);
+        }
+
+        // 設定顯示圖片
+        ivChart.setVisibility(View.VISIBLE);
+        // 顯示圖片
+
+    } catch (Exception e) {
+        Toast.makeText(getContext(), "請輸入數字", Toast.LENGTH_SHORT).show();
     }
+});
+}
 }
