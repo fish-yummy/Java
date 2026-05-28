@@ -11,6 +11,8 @@ import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 import android.widget.TextView;
 
+import java.util.List;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -19,6 +21,8 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationTokenSource;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -26,8 +30,7 @@ import android.location.Location;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
+
 
 
 // 匯入 osmdroid 相關套件
@@ -38,6 +41,8 @@ import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 
 import com.example.newjavaproject.map.network.AqiApiClient;
+import com.example.newjavaproject.map.network.OverpassApiClient;
+
 import com.example.newjavaproject.R;
 
 
@@ -166,6 +171,48 @@ public class MapFragment extends Fragment {
                         mMap.invalidate();
 
                         Toast.makeText(getContext(), "定位成功！", Toast.LENGTH_SHORT).show();
+
+                        //定位和地圖設定完成後，開始呼叫 Overpass API 抓附近的公園和學校
+                        OverpassApiClient overpassClient = new OverpassApiClient();
+                        overpassClient.fetchNearbyParks(lat, lon, new OverpassApiClient.OverpassCallback() {
+                            @Override
+                            public void onSuccess(List<OverpassApiClient.ParkLocation> locations) {
+                                // ⚠️ 重要魔法：API 是在背景執行緒跑的，要更新地圖(畫面)必須切換回「主執行緒 (UI Thread)」
+                                if (getActivity() == null) return; // 避免 Fragment 已經關閉但 API 剛好回來導致閃退
+                                
+                                requireActivity().runOnUiThread(() -> {
+                                    if (locations.isEmpty()) {
+                                        Toast.makeText(getContext(), "附近 1 公里內沒有找到適合的公園或學校喔！", Toast.LENGTH_SHORT).show();
+                                        return;
+                                    }
+
+                                    // 跑迴圈，把清單裡面的每一個公園都做成一個地圖標記 (Marker)
+                                    for (OverpassApiClient.ParkLocation park : locations) {
+                                        Marker parkMarker = new Marker(mMap);
+                                        parkMarker.setPosition(new GeoPoint(park.lat, park.lon));
+                                        parkMarker.setTitle(park.name); // 點擊圖標時會顯示這個名字
+                                        parkMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+                                        
+                                        // 把這個標記加到地圖的圖層中
+                                        mMap.getOverlays().add(parkMarker);
+                                    }
+
+                                    // 全部加完之後，呼叫 invalidate() 刷新地圖，讓所有旗子瞬間浮現！
+                                    mMap.invalidate();
+                                    Toast.makeText(getContext(), "成功為您找到 " + locations.size() + " 個綠色健走點位！", Toast.LENGTH_LONG).show();
+                                });
+                            }
+
+                            @Override
+                            public void onError(String errorMessage) {
+                                if (getActivity() == null) return;
+                                requireActivity().runOnUiThread(() -> {
+                                    Toast.makeText(getContext(), "尋找點位時發生網路錯誤", Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+
+
                         
                     } else {
                         Toast.makeText(getContext(), "無法取得定位，請確認手機是否開啟 GPS", Toast.LENGTH_LONG).show();
