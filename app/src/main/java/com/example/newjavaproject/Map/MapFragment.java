@@ -99,17 +99,7 @@ public class MapFragment extends Fragment {
         // 2. 保留你原本的 AQI API 邏輯
         TextView tvAqiValue = view.findViewById(R.id.tv_aqi_value);
         TextView tvAqiStatus = view.findViewById(R.id.tv_aqi_status);
-        // AqiApiClient apiClient = new AqiApiClient();
-        // apiClient.fetchCurrentAqi(new AqiApiClient.AqiCallback() {
-        //     @Override
-        //     public void onSuccess(String aqiValue, String status) {
-        //         // TODO: 處理 AQI 成功邏輯
-        //     }
-        //     @Override
-        //     public void onError(String errorMessage) {
-        //         // TODO: 處理 AQI 失敗邏輯
-        //     }
-        // });
+
 
         // 3. 保留你原本的 UI 點擊事件
         CardView cardMapPreview = view.findViewById(R.id.card_map_preview);
@@ -117,10 +107,10 @@ public class MapFragment extends Fragment {
             Toast.makeText(getContext(), "[架構] 點擊了地圖預覽...", Toast.LENGTH_LONG).show();
         });
 
-        CardView cardChartPreview = view.findViewById(R.id.card_chart_placeholder);
-        cardChartPreview.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "[架構] 點擊了趨勢圖...", Toast.LENGTH_LONG).show();
-        });
+        // CardView cardChartPreview = view.findViewById(R.id.card_chart_placeholder);
+        // cardChartPreview.setOnClickListener(v -> {
+        //     Toast.makeText(getContext(), "[架構] 點擊了趨勢圖...", Toast.LENGTH_LONG).show();
+        // });
     }
 
     private void checkLocationPermission() {
@@ -277,6 +267,12 @@ public class MapFragment extends Fragment {
                                         cardView.setRadius(8 * density); // 圓角
                                         cardView.setCardElevation(1 * density); // 陰影
 
+                                        android.util.TypedValue outValue = new android.util.TypedValue();
+                                        requireContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
+                                        cardView.setForeground(androidx.core.content.ContextCompat.getDrawable(requireContext(), outValue.resourceId));
+                                        cardView.setClickable(true);
+                                        cardView.setFocusable(true);
+
                                         TextView textView = new TextView(requireContext());
                                         textView.setLayoutParams(new ViewGroup.LayoutParams(
                                                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -342,25 +338,43 @@ public class MapFragment extends Fragment {
                 requireActivity().runOnUiThread(() -> {
                     TextView tvAqiValue = getView().findViewById(R.id.tv_aqi_value);
                     TextView tvAqiStatus = getView().findViewById(R.id.tv_aqi_status);
+                    
+                    // 抓取剛剛新增的儀表板 ProgressBar
+                    android.widget.ProgressBar progressAqiValue = getView().findViewById(R.id.progress_aqi_value);
 
-                    // 更新數值與動態顏色
+                    // 1. 更新數值文字與顏色
                     tvAqiValue.setText(pm25Value);
                     tvAqiValue.setTextColor(android.graphics.Color.parseColor(colorHex));
                     
-                    // 更新狀態文字，例如："臺南市 (良好)"
+                    // 2. 更新狀態文字
                     tvAqiStatus.setText(countyName + " PM2.5 (" + status + ")");
+
+                    // 3. 動態設定儀表板的進度與顏色
+                    try {
+                        int pm25Int = Integer.parseInt(pm25Value);
+                        // 將 PM2.5 數值映射到 0~100 的進度條，你可以調整這個比例
+                        // 假設 PM2.5 = 75 就滿格 (危害等級)，為了視覺效果，我們設定最大值為 100
+                        int progressValue = Math.min((pm25Int * 100) / 75, 100); 
+                        
+                        // 設定進度 (加上一點動畫效果)
+                        progressAqiValue.setProgress(progressValue, true); 
+
+                        // 動態改變儀表板的顏色
+                        progressAqiValue.setProgressTintList(
+                            android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorHex))
+                        );
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
                 });
             }
 
             @Override
             public void onError(String errorMessage) {
                 if (getActivity() == null) return;
-                requireActivity().runOnUiThread(() -> {
-                    // 把錯誤訊息直接印在畫面上，方便除錯
-                    Toast.makeText(getContext(), "錯誤：" + errorMessage, Toast.LENGTH_LONG).show();
-                    // 同時印在下方的 Logcat 視窗
-                    android.util.Log.e("AQI_API", "連線失敗原因: " + errorMessage);
-                });
+                requireActivity().runOnUiThread(() -> 
+                    Toast.makeText(getContext(), "空品資料載入失敗", Toast.LENGTH_SHORT).show()
+                );
             }
         });
     }

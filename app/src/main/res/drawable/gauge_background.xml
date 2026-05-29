@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape
+            android:shape="ring"
+            android:innerRadius="80dp" 
+            android:thickness="18dp"
+            android:useLevel="true">
+            <!-- 灰色背景軌道 -->
+            <solid android:color="#E0E0E0" /> 
+        </shape>
+    </item>
+</layer-list>
