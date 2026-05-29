@@ -43,6 +43,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 
 import com.example.newjavaproject.map.network.AqiApiClient;
 import com.example.newjavaproject.map.network.OverpassApiClient;
+import com.example.newjavaproject.BuildConfig;
 
 import com.example.newjavaproject.R;
 
@@ -98,17 +99,17 @@ public class MapFragment extends Fragment {
         // 2. 保留你原本的 AQI API 邏輯
         TextView tvAqiValue = view.findViewById(R.id.tv_aqi_value);
         TextView tvAqiStatus = view.findViewById(R.id.tv_aqi_status);
-        AqiApiClient apiClient = new AqiApiClient();
-        apiClient.fetchCurrentAqi(new AqiApiClient.AqiCallback() {
-            @Override
-            public void onSuccess(String aqiValue, String status) {
-                // TODO: 處理 AQI 成功邏輯
-            }
-            @Override
-            public void onError(String errorMessage) {
-                // TODO: 處理 AQI 失敗邏輯
-            }
-        });
+        // AqiApiClient apiClient = new AqiApiClient();
+        // apiClient.fetchCurrentAqi(new AqiApiClient.AqiCallback() {
+        //     @Override
+        //     public void onSuccess(String aqiValue, String status) {
+        //         // TODO: 處理 AQI 成功邏輯
+        //     }
+        //     @Override
+        //     public void onError(String errorMessage) {
+        //         // TODO: 處理 AQI 失敗邏輯
+        //     }
+        // });
 
         // 3. 保留你原本的 UI 點擊事件
         CardView cardMapPreview = view.findViewById(R.id.card_map_preview);
@@ -172,6 +173,51 @@ public class MapFragment extends Fragment {
                         mMap.invalidate();
 
                         Toast.makeText(getContext(), "定位成功", Toast.LENGTH_SHORT).show();
+
+                        // 【修改邏輯】1. 利用 Geocoder 將經緯度轉成縣市名稱
+                        new Thread(() -> {
+                            try {
+                                // 【關鍵修改 1】強制要求 Geocoder 回傳繁體中文 (台灣)，避免模擬器英文語系干擾
+                                android.location.Geocoder geocoder = new android.location.Geocoder(requireContext(), java.util.Locale.TAIWAN);
+                                java.util.List<android.location.Address> addresses = geocoder.getFromLocation(lat, lon, 1);
+                                
+                                if (addresses != null && !addresses.isEmpty()) {
+                                    android.location.Address address = addresses.get(0);
+                                    
+                                    // 嘗試取得行政區
+                                    String adminArea = address.getAdminArea(); 
+                                    
+                                    // 【關鍵修改 2】如果 AdminArea 是空的，在台灣有時候縣市會跑到 SubAdminArea 去
+                                    if (adminArea == null) {
+                                        adminArea = address.getSubAdminArea();
+                                    }
+
+                                    // 【除錯用】把抓到的完整地址和縣市印在 Logcat，我們來看它到底回傳了什麼
+                                    android.util.Log.d("AQI_DEBUG", "完整地址: " + address.toString());
+                                    android.util.Log.d("AQI_DEBUG", "最終決定使用的縣市字串: " + adminArea);
+                                    
+                                    if (adminArea != null) {
+                                        // 統一替換「台」為「臺」以符合政府資料庫
+                                        final String targetCounty = adminArea.replace("台", "臺");
+
+                                        requireActivity().runOnUiThread(() -> {
+                                            // 把目標縣市也用 Toast 印出來確認
+                                            Toast.makeText(getContext(), "準備查詢: " + targetCounty, Toast.LENGTH_SHORT).show();
+                                            fetchLocalAirQuality(targetCounty);
+                                        });
+                                    } else {
+                                        requireActivity().runOnUiThread(() -> 
+                                            Toast.makeText(getContext(), "無法從座標解析出縣市名稱", Toast.LENGTH_SHORT).show()
+                                        );
+                                    }
+                                }
+                            } catch (java.io.IOException e) {
+                                e.printStackTrace();
+                                requireActivity().runOnUiThread(() -> 
+                                    Toast.makeText(getContext(), "取得縣市名稱發生網路錯誤", Toast.LENGTH_SHORT).show()
+                                );
+                            }
+                        }).start();
 
                         //定位和地圖設定完成後，開始呼叫 Overpass API 抓附近的公園和學校
                         OverpassApiClient overpassClient = new OverpassApiClient();
@@ -282,21 +328,44 @@ public class MapFragment extends Fragment {
                 });
     }
 
-    // private void setupMap() {
-    //     // 將原本的 LatLng 替換為 GeoPoint
-    //     GeoPoint testLocation = new GeoPoint(23.545, 120.428);
-        
-    //     // 設定地圖視角與縮放級別
-    //     mMap.getController().setZoom(15.0);
-    //     mMap.getController().setCenter(testLocation);
 
-    //     // 建立並加入標記 (取代原本的 MarkerOptions)
-    //     Marker startMarker = new Marker(mMap);
-    //     startMarker.setPosition(testLocation);
-    //     startMarker.setTitle("氧森地圖測試成功");
-    //     startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-    //     mMap.getOverlays().add(startMarker);
-    // }
+
+    private void fetchLocalAirQuality(String county) {
+        AqiApiClient apiClient = new AqiApiClient();
+        String myApiKey = BuildConfig.PM25_API_KEY;
+
+        apiClient.fetchAveragePm25(county, myApiKey, new AqiApiClient.AqiCallback() {
+            @Override
+            public void onSuccess(String pm25Value, String status, String colorHex, String countyName) {
+                if (getActivity() == null || getView() == null) return;
+                
+                requireActivity().runOnUiThread(() -> {
+                    TextView tvAqiValue = getView().findViewById(R.id.tv_aqi_value);
+                    TextView tvAqiStatus = getView().findViewById(R.id.tv_aqi_status);
+
+                    // 更新數值與動態顏色
+                    tvAqiValue.setText(pm25Value);
+                    tvAqiValue.setTextColor(android.graphics.Color.parseColor(colorHex));
+                    
+                    // 更新狀態文字，例如："臺南市 (良好)"
+                    tvAqiStatus.setText(countyName + " PM2.5 (" + status + ")");
+                });
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (getActivity() == null) return;
+                requireActivity().runOnUiThread(() -> {
+                    // 把錯誤訊息直接印在畫面上，方便除錯
+                    Toast.makeText(getContext(), "錯誤：" + errorMessage, Toast.LENGTH_LONG).show();
+                    // 同時印在下方的 Logcat 視窗
+                    android.util.Log.e("AQI_API", "連線失敗原因: " + errorMessage);
+                });
+            }
+        });
+    }
+
+    
     
     // osmdroid 建議加入生命週期管理以節省資源
     @Override
