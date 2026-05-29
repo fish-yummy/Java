@@ -43,7 +43,9 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 
 import com.example.newjavaproject.map.network.AqiApiClient;
 import com.example.newjavaproject.map.network.OverpassApiClient;
+import com.example.newjavaproject.map.network.WeatherApiClient;
 import com.example.newjavaproject.BuildConfig;
+
 
 import com.example.newjavaproject.R;
 
@@ -193,7 +195,12 @@ public class MapFragment extends Fragment {
                                         requireActivity().runOnUiThread(() -> {
                                             // 把目標縣市也用 Toast 印出來確認
                                             Toast.makeText(getContext(), "準備查詢: " + targetCounty, Toast.LENGTH_SHORT).show();
+                                            
+                                            // 抓取 PM2.5 數值
                                             fetchLocalAirQuality(targetCounty);
+                                            
+                                            // 抓取氣象署天氣資料
+                                            fetchLocalWeather(targetCounty);
                                         });
                                     } else {
                                         requireActivity().runOnUiThread(() -> 
@@ -374,6 +381,53 @@ public class MapFragment extends Fragment {
                 if (getActivity() == null) return;
                 requireActivity().runOnUiThread(() -> 
                     Toast.makeText(getContext(), "空品資料載入失敗", Toast.LENGTH_SHORT).show()
+                );
+            }
+        });
+    }
+
+
+    // 【新增】呼叫氣象署 API 並更新 UI
+    private void fetchLocalWeather(String county) {
+        WeatherApiClient weatherClient = new WeatherApiClient();
+        String apiKey = BuildConfig.CWA_API_KEY;
+
+        weatherClient.fetchWeather(county, apiKey, new WeatherApiClient.WeatherCallback() {
+            @Override
+            public void onSuccess(String wx, String minT, String maxT) {
+                // 確保 Fragment 尚未被銷毀才更新畫面
+                if (getActivity() == null || getView() == null) return;
+
+                requireActivity().runOnUiThread(() -> {
+                    TextView tvWeatherDesc = getView().findViewById(R.id.tv_weather_desc);
+                    TextView tvWeatherTemp = getView().findViewById(R.id.tv_weather_temp);
+                    TextView tvWeatherIcon = getView().findViewById(R.id.tv_weather_icon);
+
+                    // 1. 更新天氣描述 (例如：多雲時晴)
+                    tvWeatherDesc.setText(wx);
+                    
+                    // 2. 更新溫度區間 (例如：26°C - 30°C)
+                    tvWeatherTemp.setText(minT + "°C - " + maxT + "°C");
+
+                    // 3. 長輩視覺友善：根據天氣文字自動切換表情符號
+                    if (wx.contains("雨")) {
+                        tvWeatherIcon.setText("🌧️");
+                    } else if (wx.contains("雲") && wx.contains("晴")) {
+                        tvWeatherIcon.setText("⛅");
+                    } else if (wx.contains("陰") || wx.contains("雲")) {
+                        tvWeatherIcon.setText("☁️");
+                    } else {
+                        tvWeatherIcon.setText("☀️");
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                if (getActivity() == null) return;
+                requireActivity().runOnUiThread(() -> 
+                    // 這裡可以選擇印出錯誤，或者低調處理不打擾長輩
+                    android.util.Log.e("Weather", "天氣載入失敗: " + errorMessage)
                 );
             }
         });

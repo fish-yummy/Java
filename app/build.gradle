@@ -27,6 +27,7 @@ android {
 
         manifestPlaceholders = [ MAPS_API_KEY: properties.getProperty('MAPS_API_KEY', "") ]
         buildConfigField "String", "PM25_API_KEY", "\"${properties.getProperty('PM25_API_KEY', '')}\""
+        buildConfigField("String", "CWA_API_KEY", "\"${properties.getProperty('CWA_API_KEY')}\"")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
