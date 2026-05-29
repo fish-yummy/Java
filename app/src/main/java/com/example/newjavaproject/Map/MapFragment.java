@@ -11,6 +11,7 @@ import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 import android.widget.TextView;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 
 import java.util.List;
 
@@ -54,6 +55,7 @@ import com.example.newjavaproject.R;
 
 public class MapFragment extends Fragment {
     private MapView mMap;
+    private GeoPoint currentUserLocation = null;
 
     private FusedLocationProviderClient fusedLocationClient;
 
@@ -102,11 +104,23 @@ public class MapFragment extends Fragment {
         TextView tvAqiValue = view.findViewById(R.id.tv_aqi_value);
         TextView tvAqiStatus = view.findViewById(R.id.tv_aqi_status);
 
+        ImageView btnMyLocation = view.findViewById(R.id.btn_my_location);
+        btnMyLocation.setOnClickListener(v -> {
+            if (currentUserLocation != null && mMap != null) {
+                // 平滑移動相機到紀錄的當前位置
+                mMap.getController().animateTo(currentUserLocation);
+                // 設定適當的縮放大小 (16.0 街道等級)
+                mMap.getController().setZoom(16.0);
+            } else {
+                Toast.makeText(getContext(), "尚未取得定位資訊", Toast.LENGTH_SHORT).show();
+            }
+        });
+
 
         // 3. 保留你原本的 UI 點擊事件
         CardView cardMapPreview = view.findViewById(R.id.card_map_preview);
         cardMapPreview.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "[架構] 點擊了地圖預覽...", Toast.LENGTH_LONG).show();
+            // Toast.makeText(getContext(), "[架構] 點擊了地圖預覽...", Toast.LENGTH_LONG).show();
         });
 
         // CardView cardChartPreview = view.findViewById(R.id.card_chart_placeholder);
@@ -148,15 +162,16 @@ public class MapFragment extends Fragment {
                         double lon = location.getLongitude();
 
                         // 轉換成 osmdroid 的 GeoPoint
-                        GeoPoint userLocation = new GeoPoint(lat, lon);
+                        // GeoPoint userLocation = new GeoPoint(lat, lon);
+                        currentUserLocation = new GeoPoint(lat, lon);
                         
                         // 設定地圖視角與縮放級別 (16.0 看街道比較清楚)
                         mMap.getController().setZoom(16.0);
-                        mMap.getController().setCenter(userLocation);
+                        mMap.getController().setCenter(currentUserLocation);
 
                         // 在地圖上放上一個標記代表 "現在位置"
                         Marker myMarker = new Marker(mMap);
-                        myMarker.setPosition(userLocation);
+                        myMarker.setPosition(currentUserLocation);
                         myMarker.setTitle("您的目前位置");
                         myMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
                         mMap.getOverlays().add(myMarker);
