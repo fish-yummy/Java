@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape
+            android:shape="ring"
+            android:innerRadius="80dp"
+            android:thickness="18dp"
+            android:useLevel="true">
+            <!-- 這是預設顏色，Java 裡會覆蓋它 -->
+            <solid android:color="#4CAF50" />
+        </shape>
+    </item>
+</layer-list>
