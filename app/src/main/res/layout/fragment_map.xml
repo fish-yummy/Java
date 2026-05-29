@@ -129,7 +129,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="附近綠色健走路徑"
+            android:text="附近綠色健走點位"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#333333"
@@ -157,7 +157,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp"
-                    android:text="📍 民雄鄉 - 中正大學後山綠色步道 (1.5 km)"
+                    android:text=""
                     android:textColor="#444444"
                     android:textSize="14sp"/>
             </androidx.cardview.widget.CardView>
@@ -171,7 +171,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp"
-                    android:text="📍 民雄鄉 - 國家廣播文物館園區小徑 (0.8 km)"
+                    android:text=""
                     android:textColor="#444444"
                     android:textSize="14sp"/>
             </androidx.cardview.widget.CardView>

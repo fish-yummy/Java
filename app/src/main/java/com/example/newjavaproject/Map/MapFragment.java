@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 import android.widget.TextView;
+import android.widget.LinearLayout;
 
 import java.util.List;
 
@@ -64,7 +65,7 @@ public class MapFragment extends Fragment {
                     getCurrentLocation();
                 } else {
                     // 使用者拒絕了
-                    Toast.makeText(getContext(), "需要定位權限才能幫長輩找到附近的步道喔！", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getContext(), "請開啟定位權限", Toast.LENGTH_LONG).show();
                 }
             });
 
@@ -170,36 +171,97 @@ public class MapFragment extends Fragment {
                         // 刷新地圖顯示
                         mMap.invalidate();
 
-                        Toast.makeText(getContext(), "定位成功！", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "定位成功", Toast.LENGTH_SHORT).show();
 
                         //定位和地圖設定完成後，開始呼叫 Overpass API 抓附近的公園和學校
                         OverpassApiClient overpassClient = new OverpassApiClient();
                         overpassClient.fetchNearbyParks(lat, lon, new OverpassApiClient.OverpassCallback() {
                             @Override
                             public void onSuccess(List<OverpassApiClient.ParkLocation> locations) {
-                                // ⚠️ 重要魔法：API 是在背景執行緒跑的，要更新地圖(畫面)必須切換回「主執行緒 (UI Thread)」
-                                if (getActivity() == null) return; // 避免 Fragment 已經關閉但 API 剛好回來導致閃退
+                                // 避免 Fragment 已經關閉但 API 剛好回來導致閃退
+                                if (getActivity() == null || getView() == null) return;
                                 
                                 requireActivity().runOnUiThread(() -> {
+                                    // 【步驟1】抓到容器並清空舊的假資料
+                                    LinearLayout layoutWalkingPaths = getView().findViewById(R.id.layout_walking_paths);
+                                    layoutWalkingPaths.removeAllViews();
+
                                     if (locations.isEmpty()) {
-                                        Toast.makeText(getContext(), "附近 1 公里內沒有找到適合的公園或學校喔！", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(getContext(), "附近 1 公里內沒有找到適合健走點位", Toast.LENGTH_SHORT).show();
                                         return;
                                     }
 
-                                    // 跑迴圈，把清單裡面的每一個公園都做成一個地圖標記 (Marker)
+                                    // 取得手機螢幕密度 (讓 Java 動態生成的 UI 間距跟 XML 一樣好看)
+                                    float density = getResources().getDisplayMetrics().density;
+                                    int marginPx = (int) (8 * density);
+                                    int paddingPx = (int) (16 * density);
+
+                                    // 跑迴圈，處理每一個找到的公園
                                     for (OverpassApiClient.ParkLocation park : locations) {
+                                        // -- 地圖標記邏輯 --
                                         Marker parkMarker = new Marker(mMap);
-                                        parkMarker.setPosition(new GeoPoint(park.lat, park.lon));
-                                        parkMarker.setTitle(park.name); // 點擊圖標時會顯示這個名字
+                                        GeoPoint parkPoint = new GeoPoint(park.lat, park.lon);
+                                        parkMarker.setPosition(parkPoint);
+                                        parkMarker.setTitle(park.name);
                                         parkMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-                                        
-                                        // 把這個標記加到地圖的圖層中
                                         mMap.getOverlays().add(parkMarker);
+
+                                        // -- 【步驟3】計算距離邏輯 --
+                                        float[] results = new float[1];
+                                        // 計算「長輩位置(lat, lon)」與「公園位置(park.lat, park.lon)」的距離，結果會存進 results[0]
+                                        Location.distanceBetween(lat, lon, park.lat, park.lon, results);
+                                        float distanceInMeters = results[0];
+                                        
+                                        // 判斷要顯示公尺(m)還是公里(km)，超過 1000 公尺就轉換
+                                        String distanceText;
+                                        if (distanceInMeters >= 1000) {
+                                            distanceText = String.format("%.1f km", distanceInMeters / 1000f);
+                                        } else {
+                                            distanceText = String.format("%d m", (int) distanceInMeters);
+                                        }
+
+                                        // -- 【步驟2】動態生成卡片邏輯 --
+                                        CardView cardView = new CardView(requireContext());
+                                        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.WRAP_CONTENT
+                                        );
+                                        cardParams.setMargins(0, 0, 0, marginPx); // 設定底部間距
+                                        cardView.setLayoutParams(cardParams);
+                                        cardView.setRadius(8 * density); // 圓角
+                                        cardView.setCardElevation(1 * density); // 陰影
+
+                                        TextView textView = new TextView(requireContext());
+                                        textView.setLayoutParams(new ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.WRAP_CONTENT
+                                        ));
+                                        textView.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+                                        // 將名稱與計算好的距離組合起來
+                                        textView.setText("📍 " + park.name + " (" + distanceText + ")");
+                                        textView.setTextColor(android.graphics.Color.parseColor("#444444"));
+                                        textView.setTextSize(14f);
+
+                                        // 把文字塞進卡片裡
+                                        cardView.addView(textView);
+
+                                        // -- 【步驟4】設定點擊事件與地圖連動 --
+                                        cardView.setOnClickListener(v -> {
+                                            // 地圖平滑移動到該公園的座標
+                                            mMap.getController().animateTo(parkPoint);
+                                            // 稍微放大視角，讓長輩看清楚附近街道
+                                            mMap.getController().setZoom(17.5);
+                                            // 自動彈出地標的名稱泡泡
+                                            parkMarker.showInfoWindow();
+                                        });
+
+                                        // 最後，將這張完整的卡片塞進底部的 LinearLayout 容器裡
+                                        layoutWalkingPaths.addView(cardView);
                                     }
 
-                                    // 全部加完之後，呼叫 invalidate() 刷新地圖，讓所有旗子瞬間浮現！
+                                    // 全部加完之後刷新地圖
                                     mMap.invalidate();
-                                    Toast.makeText(getContext(), "成功為您找到 " + locations.size() + " 個綠色健走點位！", Toast.LENGTH_LONG).show();
+                                    // Toast.makeText(getContext(), "已找到" + locations.size() + " 個健走點位", Toast.LENGTH_LONG).show();
                                 });
                             }
 
