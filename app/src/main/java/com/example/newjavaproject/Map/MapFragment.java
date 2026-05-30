@@ -48,10 +48,6 @@ import com.example.newjavaproject.map.network.WeatherApiClient;
 import com.example.newjavaproject.BuildConfig;
 
 
-import com.example.newjavaproject.map.network.OverpassApiClient;
-import com.example.newjavaproject.map.network.WeatherApiClient;
-import com.example.newjavaproject.BuildConfig;
-
 
 import com.example.newjavaproject.R;
 
