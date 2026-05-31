@@ -7,10 +7,13 @@
     android:background="#F5F7FA"
     tools:context=".map.MapFragment">
 
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp">
+
+       
 
         <TextView
             android:id="@+id/tv_main_title"
@@ -20,12 +23,14 @@
             android:text="氧森地圖"
             android:textSize="32sp"
             android:textStyle="bold"
-            android:textColor="#333333" 
             android:gravity="center"
             android:layout_marginBottom="16dp"
+            android:textColor="#333333" 
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
+
+         
 
         <androidx.cardview.widget.CardView
             android:id="@+id/card_aqi"
@@ -37,6 +42,7 @@
             app:layout_constraintTop_toBottomOf="@id/tv_main_title"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
+         
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -169,15 +175,17 @@
             app:layout_constraintTop_toBottomOf="@id/card_aqi"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
+    
 
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
-
+               
                 <org.osmdroid.views.MapView
                     android:id="@+id/mapview"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
+               
 
                 <View
                     android:layout_width="match_parent"
