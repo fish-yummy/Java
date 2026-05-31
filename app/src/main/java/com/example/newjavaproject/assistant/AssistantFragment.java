@@ -115,9 +115,11 @@ public class AssistantFragment extends Fragment implements SensorEventListener, 
     }
 
     @Override
+    
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // 1. 綁定所有 UI 元件
         btnStartStop = view.findViewById(R.id.btn_start_stop);
         btnResetTarget = view.findViewById(R.id.btn_reset_target);
         tvTodayAccumulatedTitle = view.findViewById(R.id.tv_today_accumulated_title);
@@ -132,46 +134,41 @@ public class AssistantFragment extends Fragment implements SensorEventListener, 
         progressCircleDistance = view.findViewById(R.id.progress_circle_distance);
         tvPoseReminderStatus = view.findViewById(R.id.tv_pose_reminder_status);
         tvCaloriesBurnt = view.findViewById(R.id.tv_calories_burnt);
-        containerHistoryRecords = view.findViewById(R.id.container_history_records);
 
+        // 2. 設定「查看歷史紀錄」按鈕 (請確保 XML 中有這個 ID)
+        Button btnViewHistory = view.findViewById(R.id.btn_view_history);
+        btnViewHistory.setOnClickListener(v -> showHistoryDialog());
+
+        // 3. 設定「清空紀錄」按鈕
         Button btnClearHistory = view.findViewById(R.id.btn_clear_history);
         btnClearHistory.setOnClickListener(v -> {
             dummyHistoryList.clear();
             saveHistoryToPrefs();
-            updateHistoryUI();
             Toast.makeText(requireContext(), "歷史紀錄已清空", Toast.LENGTH_SHORT).show();
         });
 
         loadSavedProgress();
         loadHistoryFromPrefs();
-        updateHistoryUI();
-
-        // 檢查定位權限
         checkLocationPermissions();
 
+        // 4. 定時器與其他邏輯 (維持原本不變)
         timeRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isPlaying) {
                     currentSessionTime++;
-                    
-                    // 【修改】移除原本的模擬里程增加，現在完全交給真實的 LocationListener 處理
                     updateDynamicUI();
-                    
                     if (System.currentTimeMillis() - lastMovementTime > MOVEMENT_CHECK_INTERVAL_MS) {
                         tvPoseReminderStatus.setText("靜止中");
                         tvPoseReminderStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark, null));
                     }
-
                     boolean isTimeReached = targetTimeInSeconds > 0 && currentSessionTime >= targetTimeInSeconds;
                     boolean isDistanceReached = targetDistanceInKm > 0.0 && currentDistanceInKm >= targetDistanceInKm;
-                    
                     if (isTimeReached && isDistanceReached) {
                         tvStatusHint.setText("🎉 太棒了！今日運動目標全部達標！");
                         stopExerciseAndUpdateUI();
                         return;
                     }
-                    
                     timeHandler.postDelayed(this, 1000);
                 }
             }
@@ -193,6 +190,21 @@ public class AssistantFragment extends Fragment implements SensorEventListener, 
             view.post(this::showTargetInputDialog);
         }
     }
+    private void showHistoryDialog() {
+    if (dummyHistoryList.isEmpty()) {
+        Toast.makeText(requireContext(), "目前沒有運動紀錄喔！", Toast.LENGTH_SHORT).show();
+        return;
+    }
+
+    // 將紀錄列表轉為陣列以供 Dialog 使用
+    String[] historyArray = dummyHistoryList.toArray(new String[0]);
+
+    new AlertDialog.Builder(requireContext())
+            .setTitle("運動歷史紀錄 (最近10筆)")
+            .setItems(historyArray, null) // 點擊項目時不執行特別動作
+            .setPositiveButton("關閉", null)
+            .show();
+}
 
     private void checkLocationPermissions() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
